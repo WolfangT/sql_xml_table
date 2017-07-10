@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 import logging
+import unittest
 import os
 import time
 import datetime
@@ -274,6 +275,8 @@ class table(object):
                 if isinstance(valor,str): val = valor.ljust(n)
                 elif isinstance(valor,bool): val = str(valor).center(n)
                 elif isinstance(valor,int): val = str(valor).zfill(n)
+                elif isinstance(valor,time.struct_time):
+                    val = time.strftime('%Y-%m-%d %H:%M:%S', valor)
                 else: val = str(valor).center(n)
                 v.append(val)
             values.append(format.format(*v))
@@ -734,137 +737,123 @@ def _convert_xml_a_time(nodo):
 
 
 
-def _prueba():
-    ###Crear table
-    personas = p = table('personas')
+class Test(unittest.TestCase):
 
-    #Asignar name, se usa para identificar la table cuando exportando a una db o XML
-    name = p.name
-    p.name = name
+    def test_usage(self):
+        ###Crear table
+        personas = p = table('personas')
+        #Asignar name, se usa para identificar la table cuando exportando a una db o XML
+        name = p.name
+        p.name = name
+        ##add columns
+        p.add_column(field='id', type='int', key='pri')
+        p.add_column(field='name', type='str', default="Jhon")
+        p.add_column(field='apellido', type='str', default="Doe")
+        ###Manipulacion de data
+        #insert
+        print('add los data de diferentes formas')
+        p += {'name':'wolfang','id':1,'apellido':'torres'}
+        p = p + {'id':2, 'apellido':'torres', 'name':'wendy',}
+        p = (3, 'carlos', 'molano') + p
+        print(p)
+        #insert una lina vacia llena los data faltantes con el "default"
+        print('insetar linea vacia')
+        p += ()
+        print(p)
+        #Multiplicacion
+        print('Tambien se puede multiplicar')
+        p *= 3
+        print(p)
+        #Copiado
+        print('las tables se pueden copiar, use slice en la funcion de copia( table[a:b:c] => copy(a,b,c) )')
+        c = p.copy(None,2)
+        c.name = 'clientes'
+        print(c)
+        d = p.copy()
+        d.name = 'pacientes'
+        d.rows = d.rows[2]
+        print(d)
+        #Tambien puedes sumar dos copias
+        e = c + d
+        del c
+        del d
+        e.name = 'copiado'
+        print(e)
+        #Modificacion de una row
+        print('Modificar las rows de diferentes formas')
+        p[1] = {'apellido':'molano', 'name':'carlos', 'id':3,}
+        p[2] = [2, 'wendy', 'torres']
+        print(p)
+        #Modificar un registro
+        print('Modificar los registros de diferentes formas')
+        p[0]['id']=4
+        p[1]['name']='juan'
+        print(p)
+        #remove
+        print('remove las rows')
+        del p[0]
+        print(p)
+        #convert al default
+        print('remove un registro lo convierte en el default')
+        del p[1]['name']
+        del p[1]['apellido']
+        print(p)
+        ###La tables pueden ser operadas de diferentes formas
+        ##Este es mas o menos el equivalente a:
+        #UPDATE <table> SET name = CONCAT(name,' ',apellido), apellido = NULL WHERE id = 2
+        print("UPDATE <table> SET name = CONCAT(name,' ',apellido), apellido = NULL WHERE id = 2")
+        for row in p:
+            if row['id'] == 2:
+                row['name'] += ' ' + row['apellido']
+                row['apellido'] = None
+        print(p)
+        ##Este es mas o menos el equivalente a:
+        #DELETE FROM <table> WHERE MOD(id,2) = 0 LIMIT 1
+        print("DELETE FROM <table> WHERE MOD(id,2) = 0 LIMIT 1")
+        n = 0
+        nmax = 1
+        for row in p:
+            if row['id'] % 2 == 0:
+                del p[row]
+                n += 1
+                if n >= nmax: break
+        print(p)
 
-    ##add columns
-    p.add_column(field='id', type='int', key='pri')
-    p.add_column(field='name', type='str', default="Jhon")
-    p.add_column(field='apellido', type='str', default="Doe")
+    def test_import_export(self):
+        ###Importacion y exportacion xml
+        #Crear table
+        print()
+        print('Importacion y exportacion xml')
+        dir = 'table_xml.xml'
+        compras = table("Compras")
+        compras.add_column(field="name_proveedor", type="varchar")
+        compras.add_column(field="codigo_proveedor", type="varchar")
+        compras.add_column(field="fecha", type="timestamp")
+        compras.add_column(field="codigo", type="varchar")
+        compras.add_column(field="cantidad", type="int")
+        compras.add_column(field="pn1", type="float")
+        compras.add_column(field="pvp1", type="float")
+        compras += {
+            'name_proveedor':'wolfang',
+            'codigo_proveedor':'v24404292',
+            'fecha':time.localtime(),
+            'codigo':'abc',
+            'cantidad':None,
+            'pn1':10.0,
+            'pvp1':12.0,
+            }
+        print(compras)
+        ##Exportacion
+        with open(dir, 'w') as archivo:
+            archivo.write(compras.xml)
+        ##Importacion
+        f = table()
+        with open(dir, 'r') as archivo:
+            f.xml = archivo.read()
+        print(f)
+        os.remove(dir)
 
-    ###Manipulacion de data
-    #insert
-    print('add los data de diferentes formas')
-    p += {'name':'wolfang','id':1,'apellido':'torres'}
-    p = p + {'id':2, 'apellido':'torres', 'name':'wendy',}
-    p = (3, 'carlos', 'molano') + p
-    print(p)
-
-    #insert una lina vacia llena los data faltantes con el "default"
-    print('insetar linea vacia')
-    p += ()
-    print(p)
-
-    #Multiplicacion
-    print('Tambien se puede multiplicar')
-    p *= 3
-    print(p)
-
-    #Copiado
-    print('las tables se pueden copiar, use slice en la funcion de copia( table[a:b:c] => copy(a,b,c) )')
-    c = p.copy(None,2)
-    c.name = 'clientes'
-    print(c)
-
-    d = p.copy()
-    d.name = 'pacientes'
-    d.rows = d.rows[2]
-    print(d)
-
-    #Tambien puedes sumar dos copias
-    e = c + d
-    del c
-    del d
-    e.name = 'copiado'
-    print(e)
-
-    #Modificacion de una row
-    print('Modificar las rows de diferentes formas')
-    p[1] = {'apellido':'molano', 'name':'carlos', 'id':3,}
-    p[2] = [2, 'wendy', 'torres']
-    print(p)
-
-    #Modificar un registro
-    print('Modificar los registros de diferentes formas')
-    p[0]['id']=4
-    p[1]['name']='juan'
-    print(p)
-
-    #remove
-    print('remove las rows')
-    del p[0]
-    print(p)
-
-    #convert al default
-    print('remove un registro lo convierte en el default')
-    del p[1]['name']
-    del p[1]['apellido']
-    print(p)
-
-    ###La tables pueden ser operadas de diferentes formas
-    ##Este es mas o menos el equivalente a:
-    #UPDATE <table> SET name = CONCAT(name,' ',apellido), apellido = NULL WHERE id = 2
-    print("UPDATE <table> SET name = CONCAT(name,' ',apellido), apellido = NULL WHERE id = 2")
-    for row in p:
-        if row['id'] == 2:
-            row['name'] += ' ' + row['apellido']
-            row['apellido'] = None
-    print(p)
-
-    ##Este es mas o menos el equivalente a:
-    #DELETE FROM <table> WHERE MOD(id,2) = 0 LIMIT 1
-    print("DELETE FROM <table> WHERE MOD(id,2) = 0 LIMIT 1")
-    n = 0
-    nmax = 1
-    for row in p:
-        if row['id'] % 2 == 0:
-            del p[row]
-            n += 1
-            if n >= nmax: break
-    print(p)
-
-
-    ###Importacion y exportacion xml
-    #Crear table
-    print()
-    print('Importacion y exportacion xml')
-
-    dir = 'table_xml.xml'
-    compras = table("Compras")
-    compras.add_column(field="name_proveedor", type="varchar")
-    compras.add_column(field="codigo_proveedor", type="varchar")
-    compras.add_column(field="fecha", type="timestamp")
-    compras.add_column(field="codigo", type="varchar")
-    compras.add_column(field="cantidad", type="int")
-    compras.add_column(field="pn1", type="float")
-    compras.add_column(field="pvp1", type="float")
-
-    compras += {
-        'name_proveedor':'wolfang',
-        'codigo_proveedor':'v24404292',
-        'fecha':time.localtime(),
-        'codigo':'abc',
-        'cantidad':None,
-        'pn1':10.0,
-        'pvp1':12.0,
-        }
-    print(compras)
-
-    ##Exportacion
-    with open(dir, 'w') as archivo:
-        archivo.write(compras.xml)
-
-    ##Importacion
-    f = table()
-    with open(dir, 'r') as archivo:
-        f.xml = archivo.read()
-    print(f)
-    os.remove(dir)
 
 if __name__ == '__main__':
-    _prueba()
+    unittest.main()
+
